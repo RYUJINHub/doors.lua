@@ -66,8 +66,8 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Doors - ",
-    SubTitle = "Kurumi Hub",
+    Title = "Doors ",
+    SubTitle = | Kurumi Hub",
     TabWidth = 160,
     Size = UDim2.fromOffset(510, 390),
     Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
@@ -78,7 +78,7 @@ local Window = Fluent:CreateWindow({
 --Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "rbxassetid://11433532654" }),
-    Settings = Window:AddTab({ Title = "Setting", Icon = "settings" })
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
 local Options = Fluent.Options
@@ -86,7 +86,7 @@ local Options = Fluent.Options
 do
     Fluent:Notify({
         Title = "Notification",
-        Content = "Kurumi",
+        Content = "Kurumi running script.",
         SubContent = "", -- Optional
         Duration = 10 -- Set to nil to make the notification not disappear
     })
