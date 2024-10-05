@@ -67,7 +67,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 
 local Window = Fluent:CreateWindow({
     Title = "Doors ",
-    SubTitle = | Kurumi Hub",
+    SubTitle = "| Kurumi Hub",
     TabWidth = 160,
     Size = UDim2.fromOffset(510, 390),
     Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
