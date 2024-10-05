@@ -66,7 +66,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Doors | Kurumi Hub",
+    Title = "Doors  |  Kurumi Hub",
     TabWidth = 160,
     Size = UDim2.fromOffset(510, 390),
     Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
