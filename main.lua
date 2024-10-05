@@ -1,65 +1,385 @@
 
 --Kurumi Hub  
 
- --Vars
- LocalPlayer = game:GetService("Players").LocalPlayer
- Camera = workspace.CurrentCamera
- VirtualUser = game:GetService("VirtualUser")
- MarketplaceService = game:GetService("MarketplaceService")
- 
- --Get Current Vehicle
- function GetCurrentVehicle()
-     return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.SeatPart and LocalPlayer.Character.Humanoid.SeatPart.Parent
- end
- 
- --Regular TP
- function TP(cframe)
-     GetCurrentVehicle():SetPrimaryPartCFrame(cframe)
- end
- 
- --Velocity TP
- function VelocityTP(cframe)
-     TeleportSpeed = math.random(600, 600)
-     Car = GetCurrentVehicle()
-     local BodyGyro = Instance.new("BodyGyro", Car.PrimaryPart)
-     BodyGyro.P = 5000
-     BodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-     BodyGyro.CFrame = Car.PrimaryPart.CFrame
-     local BodyVelocity = Instance.new("BodyVelocity", Car.PrimaryPart)
-     BodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-     BodyVelocity.Velocity = CFrame.new(Car.PrimaryPart.Position, cframe.p).LookVector * TeleportSpeed
-     wait((Car.PrimaryPart.Position - cframe.p).Magnitude / TeleportSpeed)
-     BodyVelocity.Velocity = Vector3.new()
-     wait(0.1)
-     BodyVelocity:Destroy()
-     BodyGyro:Destroy()
- end
- 
- --Auto Farm
- StartPosition = CFrame.new(Vector3.new(-34567.375, 34.895652770996094, -32846.046875), Vector3.new())
- EndPosition = CFrame.new(Vector3.new(-31448.3515625, 34.925010681152344, -26616.25), Vector3.new())
- AutoFarmFunc = coroutine.create(function()
-     while wait() do
-         if not AutoFarm then
-             AutoFarmRunning = false
-             coroutine.yield()
-         end
-         AutoFarmRunning = true
-         pcall(function()
-             if not GetCurrentVehicle() and tick() - (LastNotif or 0) > 5 then
-                 LastNotif = tick()
-             else
-                 TP(StartPosition + (TouchTheRoad and Vector3.new(0,-5,0) or Vector3.new(0, -5, 0)))
-                 VelocityTP(EndPosition + (TouchTheRoad and Vector3.new(0,-5,0) or Vector3.new(0, -5, 0)))
-                 TP(EndPosition + (TouchTheRoad and Vector3.new(0,-5,0) or Vector3.new(0, -5, 0)))
-                 VelocityTP(StartPosition + (TouchTheRoad and Vector3.new(0,-5,0) or Vector3.new(0, -5, 0)))
-             end
-         end)
-     end
- end)
- 
+ --// Services \\--
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
+local PathfindingService = game:GetService("PathfindingService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+--// Loading Wait \\--
+if not game:IsLoaded() then game.Loaded:Wait() end
+if Players.LocalPlayer and Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingUI") and Players.LocalPlayer.PlayerGui.LoadingUI.Enabled then
+    repeat task.wait() until not game.Players.LocalPlayer.PlayerGui.LoadingUI.Enabled
+end
+
+--// Variables \\--
+local Script = {
+    Binded = {}, -- ty geo for idea :smartindividual:
+    Connections = {},
+    FeatureConnections = {
+        Character = {},
+        Clip = {},
+        Door = {},
+        Humanoid = {},
+        Player = {},
+        RootPart = {},
+    },
+
+    ESPTable = {
+        Chest = {},
+        Door = {},
+        Entity = {},
+        SideEntity = {},
+        Gold = {},
+        Guiding = {},
+        Item = {},
+        Objective = {},
+        Player = {},
+        HidingSpot = {},
+        None = {}
+    },
+
+    Functions = {
+        Minecart = {},
+        Notifs = {Linoria = {}, Doors = {}}
+    },
+
+    Lagback = {
+        Detected = false,
+        Threshold = 1,
+        Anchors = 0,
+        LastAnchored = 0,
+        LastSpeed = 0,
+        LastFlySpeed = 0,
+    },
+
+    Temp = {
+        AnchorFinished = {},
+        AutoWardrobeEntities = {},
+        Bridges = {},
+        FlyBody = nil,
+        Guidance = {},
+        PaintingDebounce = false,
+        UsedBreakers = {},
+    },
+
+    FakeRevive = {
+        Debounce = false,
+        Enabled = false,
+        Connections = {}
+    }
+}
+
+local WhitelistConfig = {
+    [45] = {firstKeep = 3, lastKeep = 2},
+    [46] = {firstKeep = 2, lastKeep = 2},
+    [47] = {firstKeep = 2, lastKeep = 2},
+    [48] = {firstKeep = 2, lastKeep = 2},
+    [49] = {firstKeep = 2, lastKeep = 4},
+}
+
+local SuffixPrefixes = {
+    ["Backdoor"] = "",
+    ["Ceiling"] = "",
+    ["Moving"] = "",
+    ["Ragdoll"] = "",
+    ["Rig"] = "",
+    ["Wall"] = "",
+    ["Clock"] = " Clock",
+    ["Key"] = " Key",
+    ["Pack"] = " Pack",
+    ["Pointer"] = " Pointer",
+    ["Swarm"] = " Swarm",
+}
+local PrettyFloorName = {
+    ["Fools"] = "Super Hard Mode",
+}
 
 
+local EntityTable = {
+    ["Names"] = {"BackdoorRush", "BackdoorLookman", "RushMoving", "AmbushMoving", "Eyes", "JeffTheKiller", "A60", "A120"},
+    ["SideNames"] = {"FigureRig", "GiggleCeiling", "GrumbleRig", "Snare"},
+    ["ShortNames"] = {
+        ["BackdoorRush"] = "Blitz",
+        ["JeffTheKiller"] = "Jeff The Killer"
+    },
+    ["NotifyMessage"] = {
+        ["GloombatSwarm"] = "Gloombats in next room!"
+    },
+    ["Avoid"] = {
+        "RushMoving",
+        "AmbushMoving"
+    },
+    ["NotifyReason"] = {
+        ["A60"] = {
+            ["Image"] = "12350986086",
+        },
+        ["A120"] = {
+            ["Image"] = "12351008553",
+        },
+        ["BackdoorRush"] = {
+            ["Image"] = "11102256553",
+        },
+        ["RushMoving"] = {
+            ["Image"] = "11102256553",
+        },
+        ["AmbushMoving"] = {
+            ["Image"] = "10938726652",
+        },
+        ["Eyes"] = {
+            ["Image"] = "10865377903",
+            ["Spawned"] = true
+        },
+        ["BackdoorLookman"] = {
+            ["Image"] = "16764872677",
+            ["Spawned"] = true
+        },
+        ["JeffTheKiller"] = {
+            ["Image"] = "98993343",
+            ["Spawned"] = true
+        },
+        ["GloombatSwarm"] = {
+            ["Image"] = "79221203116470",
+            ["Spawned"] = true
+        }
+    },
+    ["NoCheck"] = {
+        "Eyes",
+        "BackdoorLookman",
+        "JeffTheKiller"
+    },
+    ["InfCrucifixVelocity"] = {
+        ["RushMoving"] = {
+            threshold = 52,
+            minDistance = 55,
+        },
+        ["RushNew"] = {
+            threshold = 52,
+            minDistance = 55,
+        },    
+        ["AmbushMoving"] = {
+            threshold = 70,
+            minDistance = 80,
+        }
+    },
+    ["AutoWardrobe"] = {
+        ["Entities"] = {
+            "RushMoving",
+            "AmbushMoving",
+            "BackdoorRush",
+            "A60",
+            "A120",
+        },
+        ["Distance"] = {
+            ["RushMoving"] = {
+                Distance = 100,
+                Loader = 175
+            },
+            ["BackdoorRush"] = {
+                Distance = 100,
+                Loader = 175
+            },
+    
+            ["AmbushMoving"] = {
+                Distance = 155,
+                Loader = 200
+            },
+            ["A60"] = {
+                Distance = 200,
+                Loader = 200
+            },
+            ["A120"] = {
+                Distance = 200,
+                Loader = 200
+            }
+        }
+    }
+}
+
+local HidingPlaceName = {
+    ["Hotel"] = "Closet",
+    ["Backdoor"] = "Closet",
+    ["Fools"] = "Closet",
+
+    ["Rooms"] = "Locker",
+    ["Mines"] = "Locker"
+}
+local CutsceneExclude = {
+    "FigureHotelChase",
+    "Elevator1",
+    "MinesFinale"
+}
+local SlotsName = {
+    "Oval",
+    "Square",
+    "Tall",
+    "Wide"
+}
+
+local PromptTable = {
+    GamePrompts = {},
+
+    Aura = {
+        ["ActivateEventPrompt"] = false,
+        ["AwesomePrompt"] = true,
+        ["FusesPrompt"] = true,
+        ["HerbPrompt"] = false,
+        ["LeverPrompt"] = true,
+        ["LootPrompt"] = false,
+        ["ModulePrompt"] = true,
+        ["SkullPrompt"] = false,
+        ["UnlockPrompt"] = true,
+        ["ValvePrompt"] = false,
+        ["PropPrompt"] = true
+    },
+    AuraObjects = {
+        "Lock",
+        "Button"
+    },
+
+    Clip = {
+        "AwesomePrompt",
+        "FusesPrompt",
+        "HerbPrompt",
+        "HidePrompt",
+        "LeverPrompt",
+        "LootPrompt",
+        "ModulePrompt",
+        "Prompt",
+        "PushPrompt",
+        "SkullPrompt",
+        "UnlockPrompt",
+        "ValvePrompt"
+    },
+    ClipObjects = {
+        "LeverForGate",
+        "LiveBreakerPolePickup",
+        "LiveHintBook",
+        "Button",
+    },
+
+    Excluded = {
+        Prompt = {
+            "HintPrompt",
+            "InteractPrompt"
+        },
+
+        Parent = {
+            "KeyObtainFake",
+            "Padlock"
+        },
+
+        ModelAncestor = {
+            "DoorFake"
+        }
+    }
+}
+
+local RBXGeneral = TextChatService.TextChannels.RBXGeneral
+
+--// Exploits Variables \\--
+local fireTouch = firetouchinterest or firetouchtransmitter
+local firePrompt = ExecutorSupport["fireproximityprompt"] and fireproximityprompt or _fireproximityprompt
+local forceFirePrompt = ExecutorSupport["fireproximityprompt"] and fireproximityprompt or _forcefireproximityprompt
+local isnetowner = ExecutorSupport["isnetworkowner"] and isnetworkowner or _isnetworkowner
+
+--// Player Variables \\--
+local camera = workspace.CurrentCamera
+
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer.PlayerGui
+local playerScripts = localPlayer.PlayerScripts
+
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local alive = localPlayer:GetAttribute("Alive")
+local humanoid: Humanoid
+local rootPart: BasePart
+local collision
+local collisionClone
+local velocityLimiter
+
+--// DOORS Variables \\--
+local entityModules = ReplicatedStorage:WaitForChild("ClientModules"):WaitForChild("EntityModules")
+
+local gameData = ReplicatedStorage:WaitForChild("GameData")
+local floor = gameData:WaitForChild("Floor")
+local latestRoom = gameData:WaitForChild("LatestRoom")
+
+local liveModifiers = ReplicatedStorage:WaitForChild("LiveModifiers")
+
+local isMines = floor.Value == "Mines"
+local isRooms = floor.Value == "Rooms"
+local isHotel = floor.Value == "Hotel"
+local isBackdoor = floor.Value == "Backdoor"
+local isFools = floor.Value == "Fools"
+
+local floorReplicated = if not isFools then ReplicatedStorage:WaitForChild("FloorReplicated") else nil
+local remotesFolder = if not isFools then ReplicatedStorage:WaitForChild("RemotesFolder") else ReplicatedStorage:WaitForChild("EntityInfo")
+
+--// Player DOORS Variables \\--
+local currentRoom = localPlayer:GetAttribute("CurrentRoom") or 0
+local nextRoom = currentRoom + 1
+
+local mainUI = playerGui:WaitForChild("MainUI")
+local mainGame = mainUI:WaitForChild("Initiator"):WaitForChild("Main_Game")
+local mainGameSrc = if ExecutorSupport["require"] then require(mainGame) else nil
+local controlModule = if ExecutorSupport["require"] then require(playerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule")) else nil
+
+--// Other Variables \\--
+local speedBypassing = false
+
+local lastSpeed = 0
+local bypassed = false
+
+local MinecartPathNodeColor = {
+    Disabled = nil,
+    Red = Color3.new(1, 0, 0),
+    Yellow = Color3.new(1, 1, 0),
+    Purple = Color3.new(1, 0, 1),
+    Green = Color3.new(0, 1, 0),
+    Cyan = Color3.new(0, 1, 1),
+    Orange = Color3.new(1, 0.5, 0),
+    White = Color3.new(1, 1, 1),
+}
+
+local MinecartPathfind = {
+    -- ground chase [41 to 44]
+    -- minecart chase [45 to 49]
+}
+
+--// Types \\--
+type ESP = {
+    Color: Color3,
+    IsEntity: boolean,
+    IsDoubleDoor: boolean,
+    Object: Instance,
+    Offset: Vector3,
+    Text: string,
+    TextParent: Instance,
+    Type: string,
+}
+
+type tPathfind = {
+    esp: boolean,
+    room_number: number, -- the room number
+    real: table,
+    fake: table,
+    destroyed: boolean -- if the pathfind was destroyed for the Teleport
+}
+
+type tGroupTrack = {
+    nodes: table,
+    hasStart: boolean,
+    hasEnd: boolean,
+}
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
@@ -77,6 +397,7 @@ local Window = Fluent:CreateWindow({
 --Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "rbxassetid://11433532654" }),
+    Esp = Window:AddTab({ Title = "Esp", Icon = "eye" }),
     Settings = Window:AddTab({ Title = "Setting", Icon = "settings" })
 }
 
@@ -366,7 +687,7 @@ ImageButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 ImageButton.BorderSizePixel = 0
 ImageButton.Position = UDim2.new(0.156000003, 0, -0, 0)
 ImageButton.Size = UDim2.new(0, 50, 0, 50)
-ImageButton.Image = "rbxassetid://16731758728"
+ImageButton.Image = ""
 ImageButton.MouseButton1Click:Connect(function()
 game.CoreGui:FindFirstChild("ScreenGui").Enabled = not game.CoreGui:FindFirstChild("ScreenGui").Enabled
 end)
