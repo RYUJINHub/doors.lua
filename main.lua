@@ -70,7 +70,7 @@ local Window = Fluent:CreateWindow({
     SubTitle = "Kurumi Hub",
     TabWidth = 160,
     Size = UDim2.fromOffset(510, 390),
-    Acrylic = false, -- The blur may be detectable, setting this to false disables blur entirely
+    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
     Theme = "Amethyst",
     MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
 })
@@ -95,7 +95,7 @@ end
 
 
 
-local Toggle = Tabs.Main:AddToggle("MyToggle", {Title = "hdshdh", Default = false })
+local Toggle = Tabs.Main:AddToggle("MyToggle", {Title = "intra", Default = false })
 
     Toggle:OnChanged(function(Value)
         AutoFarm = Value
